@@ -150,6 +150,9 @@
     <label for="base">Alamat undangan</label>
     <input id="base" type="text" value="https://nama-proyek.vercel.app/" placeholder="https://nama-proyek.vercel.app/">
 
+    <label for="token">Token akses (GUEST_SECRET_KEY)</label>
+    <input id="token" type="password" autocomplete="new-password" placeholder="Masukkan token yang diatur di Vercel">
+
     <label for="names">Nama tamu (satu nama per baris)</label>
     <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
 
@@ -172,9 +175,7 @@
     let rows = [];
 
     const qs = new URLSearchParams(location.search);
-    const guest = (qs.get('base')).trim().replace(/\s+/g, ' ').slice(0, 60);
-
-
+    const guest = (qs.get('base') || '').trim();
 
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
@@ -198,6 +199,9 @@
 
     $('go').addEventListener('click', () => {
       const err = $('err'); err.hidden = true;
+      const token = $('token').value;
+      if (!token) { err.textContent = 'Masukkan token akses yang sama dengan GUEST_SECRET_KEY di Vercel.'; err.hidden = false; return; }
+
       let base;
       try { base = new URL($('base').value.trim()); }
       catch (e) { err.textContent = 'Alamat undangan belum valid. Contoh: https://nama-proyek.vercel.app/'; err.hidden = false; return; }
@@ -207,7 +211,12 @@
 
       try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value })); } catch (e) { }
 
-      rows = names.map(n => { const u = new URL(base.href); u.searchParams.set('to', n); return { n, link: u.toString() }; });
+      rows = names.map(n => {
+        const u = new URL(base.href);
+        u.searchParams.set('to', n);
+        u.searchParams.set('auth', token);
+        return { n, link: u.toString() };
+      });
       render();
     });
 
