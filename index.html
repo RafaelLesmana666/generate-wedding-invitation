@@ -139,17 +139,6 @@
       font-size: .85rem;
       margin-top: 8px
     }
-
-    .hint {
-      font-size: .78rem;
-      opacity: .75;
-      margin-top: 4px
-    }
-
-    button:disabled {
-      opacity: .65;
-      cursor: wait
-    }
   </style>
 </head>
 
@@ -159,11 +148,10 @@
     <p class="sub">Tempel daftar nama tamu, lalu buat link personal untuk masing-masing.</p>
 
     <label for="base">Alamat undangan</label>
-    <input id="base" type="url" value="https://val-with-tan.site/" placeholder="https://domain-undangan/">
+    <input id="base" type="text" value="https://nama-proyek.vercel.app/" placeholder="https://nama-proyek.vercel.app/">
 
-    <label for="secret">Token generator (INVITATION_GENERATOR_SECRET)</label>
-    <input id="secret" type="password" autocomplete="new-password" placeholder="Masukkan kunci generator">
-    <p class="hint">Kunci generator diverifikasi di server dan tidak disimpan di browser.</p>
+    <label for="token">Token akses (GUEST_SECRET_KEY)</label>
+    <input id="token" type="password" autocomplete="new-password" placeholder="Masukkan token yang diatur di Vercel">
 
     <label for="names">Nama tamu (satu nama per baris)</label>
     <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
@@ -209,51 +197,27 @@
     };
     const flash = (btn, label) => { const o = btn.textContent; btn.textContent = label; setTimeout(() => btn.textContent = o, 1500); };
 
-    $('go').addEventListener('click', async () => {
+    $('go').addEventListener('click', () => {
       const err = $('err'); err.hidden = true;
-      const secret = $('secret').value;
-      if (!secret) { err.textContent = 'Masukkan kunci generator.'; err.hidden = false; return; }
+      const token = $('token').value;
+      if (!token) { err.textContent = 'Masukkan token akses yang sama dengan GUEST_SECRET_KEY di Vercel.'; err.hidden = false; return; }
 
-      const base = $('base').value.trim();
-      try {
-        const parsedBase = new URL(base);
-        if (!['https:', 'http:'].includes(parsedBase.protocol) || parsedBase.username || parsedBase.password) {
-          throw new Error('Invalid invitation URL.');
-        }
-      } catch {
-        err.textContent = 'Alamat undangan belum valid. Contoh: https://val-with-tan.site/';
-        err.hidden = false;
-        return;
-      }
+      let base;
+      try { base = new URL($('base').value.trim()); }
+      catch (e) { err.textContent = 'Alamat undangan belum valid. Contoh: https://nama-proyek.vercel.app/'; err.hidden = false; return; }
 
       const names = [...new Set($('names').value.split('\n').map(x => x.trim()).filter(Boolean))];
       if (!names.length) { err.textContent = 'Isi minimal satu nama tamu.'; err.hidden = false; return; }
-      if (names.some(name => name.length > 60)) { err.textContent = 'Setiap nama tamu maksimal 60 karakter.'; err.hidden = false; return; }
-      if (names.length > 500) { err.textContent = 'Maksimal 500 nama tamu sekali proses.'; err.hidden = false; return; }
 
       try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value })); } catch (e) { }
 
-      const button = $('go');
-      button.disabled = true;
-      button.textContent = 'Membuat link...';
-      try {
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret, baseUrl: base, names })
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Gagal membuat link.');
-        rows = result.links;
-        render();
-        $('secret').value = '';
-      } catch (error) {
-        err.textContent = error.message || 'Gagal terhubung ke server generator.';
-        err.hidden = false;
-      } finally {
-        button.disabled = false;
-        button.textContent = 'Buat Link';
-      }
+      rows = names.map(n => {
+        const u = new URL(base.href);
+        u.searchParams.set('to', n);
+        u.searchParams.set('auth', token);
+        return { n, link: u.toString() };
+      });
+      render();
     });
 
     function render() {
