@@ -1,5 +1,5 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { createInvitationToken, getInvitationKey } from '../lib/invitation-token.mjs';
+import invitationTokens from '../lib/invitation-token.cjs';
 
 export default function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,7 +15,7 @@ export default function handler(req, res) {
 
   let encryptionKey;
   try {
-    encryptionKey = getInvitationKey();
+    encryptionKey = invitationTokens.getInvitationKey();
   } catch (error) {
     console.error(error.message);
     return res.status(500).json({ error: 'Invitation encryption is not configured.' });
@@ -62,7 +62,7 @@ export default function handler(req, res) {
   try {
     const links = names.map(value => {
       const guestName = value.trim().replace(/\s+/g, ' ');
-      const invite = createInvitationToken({ id: randomUUID(), guestName }, encryptionKey);
+      const invite = invitationTokens.createInvitationToken({ id: randomUUID(), guestName }, encryptionKey);
       const url = new URL(baseUrl);
       url.searchParams.delete('auth');
       url.searchParams.delete('to');
