@@ -154,24 +154,14 @@
     <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
 
     <label for="msg">Pesan WhatsApp (pakai {nama} dan {link})</label>
-
-    <textarea id="msg">
-      With joy and gratitude, we would like to invite you to celebrate our wedding🤍
-      Dear {nama},
-      It would be our pleasure to have you join us on our special day.
-
-      Please find the details of our wedding invitation through the link below.
-
-      {link}
-
-      Warm regards,
-      Valen & Tanzil</textarea>
+    <textarea
+      id="msg">Assalamu'alaikum {nama}, kami mengundang Anda ke acara pernikahan kami. Detail undangan ada di sini: {link}</textarea>
 
     <button class="main" id="go" type="button">Buat Link</button>
     <p class="err" id="err" hidden></p>
 
     <div id="out" hidden>
-      <div class="bar"><b id="count"></b><button id="copyAll" type="button">Salin semua (Nama &amp; Link)</button></div>
+      <div class="bar"><b id="count"></b><button id="copyAll" type="button">Salin semua (Nama, Link &amp; Pesan)</button></div>
       <div id="list"></div>
     </div>
   </div>
@@ -198,10 +188,23 @@
     const copy = async txt => {
       try { await navigator.clipboard.writeText(txt); }
       catch (e) {
-        const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
-        try { document.execCommand('copy'); } catch (_) { } t.remove();
+        const t = document.createElement('textarea');
+        t.value = txt;
+        t.setAttribute('readonly', '');
+        t.style.position = 'fixed';
+        t.style.opacity = '0';
+        document.body.appendChild(t);
+        t.focus();
+        t.select();
+        t.setSelectionRange(0, t.value.length);
+        let copied = false;
+        try { copied = document.execCommand('copy'); }
+        finally { t.remove(); }
+        if (!copied) throw e;
       }
     };
+    const messageFor = row => $('msg').value.replace(/\{nama\}/g, row.n).replace(/\{link\}/g, row.link);
+    const copyError = () => alert('Gagal menyalin. Coba buka halaman melalui HTTPS atau salin teks secara manual.');
     const flash = (btn, label) => { const o = btn.textContent; btn.textContent = label; setTimeout(() => btn.textContent = o, 1500); };
 
     $('go').addEventListener('click', () => {
@@ -231,9 +234,12 @@
         const n = document.createElement('span'); n.className = 'n'; n.textContent = r.n;
         const a = document.createElement('div'); a.className = 'a';
         const c = document.createElement('button'); c.type = 'button'; c.textContent = 'Salin link';
-        c.addEventListener('click', async () => { await copy(r.link); flash(c, 'Tersalin ✓'); });
+        c.addEventListener('click', async () => {
+          try { await copy(r.link); flash(c, 'Tersalin ✓'); }
+          catch (e) { copyError(); }
+        });
         const w = document.createElement('a'); w.className = 'btn wa'; w.textContent = 'WhatsApp'; w.target = '_blank'; w.rel = 'noopener';
-        const text = $('msg').value.replace(/\{nama\}/g, r.n).replace(/\{link\}/g, r.link);
+        const text = messageFor(r);
         w.href = 'https://wa.me/?text=' + encodeURIComponent(text);
         a.append(c, w);
         const l = document.createElement('span'); l.className = 'l'; l.textContent = r.link;
@@ -244,8 +250,17 @@
     }
 
     $('copyAll').addEventListener('click', async e => {
-      await copy(rows.map(r => r.n + '\t' + r.link).join('\n'));
-      flash(e.currentTarget, 'Tersalin ✓');
+      const text = rows.map(r => [
+        'Nama: ' + r.n,
+        'Link: ' + r.link,
+        'Pesan: ' + messageFor(r)
+      ].join('\n')).join('\n\n');
+      try {
+        await copy(text);
+        flash(e.currentTarget, 'Tersalin ✓');
+      } catch (error) {
+        copyError();
+      }
     });
   </script>
 </body>
