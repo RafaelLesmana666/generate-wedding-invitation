@@ -271,9 +271,9 @@
 
     $('copyAll').addEventListener('click', async e => {
       const text = rows.map(r => [
-        'Nama: ' + r.n,
-        'Link: ' + r.link,
-        messageFor(r)
+        '=========================================',
+        messageFor(r),
+        '=========================================',
       ].join('\n')).join('\n\n');
       try {
         await copy(text);
