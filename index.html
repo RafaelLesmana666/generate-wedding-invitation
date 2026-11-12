@@ -273,7 +273,7 @@
       const text = rows.map(r => [
         'Nama: ' + r.n,
         'Link: ' + r.link,
-        'Pesan: ' + messageFor(r)
+        messageFor(r)
       ].join('\n')).join('\n\n');
       try {
         await copy(text);
