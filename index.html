@@ -150,15 +150,22 @@
     <label for="base">Alamat undangan</label>
     <input id="base" type="text" value="https://nama-proyek.vercel.app/" placeholder="https://nama-proyek.vercel.app/">
 
-    <label for="token">Token akses (GUEST_SECRET_KEY)</label>
-    <input id="token" type="text" autocomplete="new-password" placeholder="Masukkan token yang diatur di Vercel">
-
     <label for="names">Nama tamu (satu nama per baris)</label>
     <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
 
     <label for="msg">Pesan WhatsApp (pakai {nama} dan {link})</label>
-    <textarea
-      id="msg">Assalamu'alaikum {nama}, kami mengundang Anda ke acara pernikahan kami. Detail undangan ada di sini: {link}</textarea>
+
+    <textarea id="msg">
+      With joy and gratitude, we would like to invite you to celebrate our wedding🤍
+      Dear {nama},
+      It would be our pleasure to have you join us on our special day.
+
+      Please find the details of our wedding invitation through the link below.
+
+      {link}
+
+      Warm regards,
+      Valen & Tanzil</textarea>
 
     <button class="main" id="go" type="button">Buat Link</button>
     <p class="err" id="err" hidden></p>
@@ -199,8 +206,6 @@
 
     $('go').addEventListener('click', () => {
       const err = $('err'); err.hidden = true;
-      const token = $('token').value;
-      if (!token) { err.textContent = 'Masukkan token akses yang sama dengan GUEST_SECRET_KEY di Vercel.'; err.hidden = false; return; }
 
       let base;
       try { base = new URL($('base').value.trim()); }
@@ -214,7 +219,6 @@
       rows = names.map(n => {
         const u = new URL(base.href);
         u.searchParams.set('to', n);
-        u.searchParams.set('auth', token);
         return { n, link: u.toString() };
       });
       render();
