@@ -139,6 +139,14 @@
       font-size: .85rem;
       margin-top: 8px
     }
+
+    .copy-fallback {
+      margin-top: 12px
+    }
+
+    .copy-fallback textarea {
+      margin-top: 6px
+    }
   </style>
 </head>
 
@@ -159,6 +167,10 @@
 
     <button class="main" id="go" type="button">Buat Link</button>
     <p class="err" id="err" hidden></p>
+    <div class="copy-fallback" id="copyFallback" hidden>
+      <p class="err">Browser menolak salin otomatis. Teks sudah dipilih—salin secara manual:</p>
+      <textarea id="copyText" readonly></textarea>
+    </div>
 
     <div id="out" hidden>
       <div class="bar"><b id="count"></b><button id="copyAll" type="button">Salin semua (Nama, Link &amp; Pesan)</button></div>
@@ -185,26 +197,34 @@
       }
     } catch (e) { }
 
-    const copy = async txt => {
-      try { await navigator.clipboard.writeText(txt); }
-      catch (e) {
-        const t = document.createElement('textarea');
-        t.value = txt;
-        t.setAttribute('readonly', '');
-        t.style.position = 'fixed';
-        t.style.opacity = '0';
-        document.body.appendChild(t);
-        t.focus();
-        t.select();
-        t.setSelectionRange(0, t.value.length);
-        let copied = false;
-        try { copied = document.execCommand('copy'); }
-        finally { t.remove(); }
-        if (!copied) throw e;
-      }
+    const copy = txt => {
+      const t = document.createElement('textarea');
+      t.value = txt;
+      t.setAttribute('readonly', '');
+      t.style.position = 'fixed';
+      t.style.opacity = '0';
+      document.body.appendChild(t);
+      t.focus();
+      t.select();
+      t.setSelectionRange(0, t.value.length);
+      let copied = false;
+      try { copied = document.execCommand('copy'); }
+      finally { t.remove(); }
+      if (copied) return Promise.resolve();
+      if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(txt);
+      return Promise.reject(new Error('Clipboard tidak tersedia di konteks ini.'));
     };
     const messageFor = row => $('msg').value.replace(/\{nama\}/g, row.n).replace(/\{link\}/g, row.link);
-    const copyError = () => alert('Gagal menyalin. Coba buka halaman melalui HTTPS atau salin teks secara manual.');
+    const showCopyFallback = txt => {
+      const fallback = $('copyFallback');
+      const field = $('copyText');
+      field.value = txt;
+      fallback.hidden = false;
+      field.focus();
+      field.select();
+      field.setSelectionRange(0, field.value.length);
+      fallback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
     const flash = (btn, label) => { const o = btn.textContent; btn.textContent = label; setTimeout(() => btn.textContent = o, 1500); };
 
     $('go').addEventListener('click', () => {
@@ -236,7 +256,7 @@
         const c = document.createElement('button'); c.type = 'button'; c.textContent = 'Salin link';
         c.addEventListener('click', async () => {
           try { await copy(r.link); flash(c, 'Tersalin ✓'); }
-          catch (e) { copyError(); }
+          catch (e) { showCopyFallback(r.link); }
         });
         const w = document.createElement('a'); w.className = 'btn wa'; w.textContent = 'WhatsApp'; w.target = '_blank'; w.rel = 'noopener';
         const text = messageFor(r);
@@ -259,7 +279,7 @@
         await copy(text);
         flash(e.currentTarget, 'Tersalin ✓');
       } catch (error) {
-        copyError();
+        showCopyFallback(text);
       }
     });
   </script>
