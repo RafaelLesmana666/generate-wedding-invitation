@@ -140,6 +140,12 @@
       margin-top: 8px
     }
 
+    .hint {
+      font-size: .78rem;
+      opacity: .75;
+      margin-top: 4px
+    }
+
     .copy-fallback {
       margin-top: 12px
     }
@@ -157,6 +163,10 @@
 
     <label for="base">Alamat undangan</label>
     <input id="base" type="text" value="https://nama-proyek.vercel.app/" placeholder="https://nama-proyek.vercel.app/">
+
+    <label for="salt">Token generator</label>
+    <input id="salt" type="password" autocomplete="off" placeholder="Masukkan token generator">
+    <p class="hint">Token divalidasi oleh server undangan dan tidak disimpan di browser.</p>
 
     <label for="names">Nama tamu (satu nama per baris)</label>
     <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
@@ -227,24 +237,51 @@
     };
     const flash = (btn, label) => { const o = btn.textContent; btn.textContent = label; setTimeout(() => btn.textContent = o, 1500); };
 
-    $('go').addEventListener('click', () => {
+    $('go').addEventListener('click', async () => {
       const err = $('err'); err.hidden = true;
 
       let base;
       try { base = new URL($('base').value.trim()); }
       catch (e) { err.textContent = 'Alamat undangan belum valid. Contoh: https://nama-proyek.vercel.app/'; err.hidden = false; return; }
 
+      if (base.protocol !== 'https:' && base.hostname !== 'localhost') {
+        err.textContent = 'Alamat undangan harus menggunakan HTTPS.';
+        err.hidden = false;
+        return;
+      }
+
       const names = [...new Set($('names').value.split('\n').map(x => x.trim()).filter(Boolean))];
       if (!names.length) { err.textContent = 'Isi minimal satu nama tamu.'; err.hidden = false; return; }
+      if (!$('salt').value) { err.textContent = 'Masukkan token generator.'; err.hidden = false; return; }
 
       try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value })); } catch (e) { }
 
-      rows = names.map(n => {
-        const u = new URL(base.href);
-        u.searchParams.set('to', n);
-        return { n, link: u.toString() };
-      });
-      render();
+      const button = $('go');
+      button.disabled = true;
+      button.textContent = 'Menyimpan...';
+      try {
+        const response = await fetch('/api/invitations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ salt: $('salt').value, names })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Gagal menyimpan undangan.');
+
+        rows = result.invitations.map(invitation => {
+          const u = new URL(base.href);
+          u.searchParams.set('id', invitation.id);
+          return { n: invitation.name, link: u.toString() };
+        });
+        $('salt').value = '';
+        render();
+      } catch (error) {
+        err.textContent = error.message || 'Gagal terhubung ke server undangan.';
+        err.hidden = false;
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Buat Link';
+      }
     });
 
     function render() {
