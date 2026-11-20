@@ -8,4 +8,4 @@ Deploy project [Undangan](../Undangan) dengan koneksi database yang sama. API di
 
 Setiap tamu tersimpan dengan ID `MD5(UUID + INVITATION_TOKEN)`, nama, dan `device_id` yang awalnya kosong. Link memakai parameter `?id=...`. Saat pertama kali dibuka, API Undangan mengunci undangan ke ID browser yang disimpan di `localStorage`; pembukaan dari browser/perangkat berbeda ditolak. Menghapus data browser atau memakai browser profile lain akan membuat ID perangkat baru.
 
-Generator juga bisa membuat satu link publik (`?public=1`) tanpa menyimpan daftar tamu atau memakai token. Nama undangan publik dapat diisi opsional dan akan ditampilkan di halaman undangan melalui parameter `to`; nama RSVP tetap diisi oleh pengunjung.
+Generator juga bisa membuat link publik (`?public=1`) tanpa menyimpan daftar tamu atau memakai token. Nama undangan dapat diisi satu per baris untuk membuat link publik terpisah; tiap nama ditampilkan melalui parameter `to`. Jika daftar nama kosong, dibuat satu link umum. Nama RSVP tetap diisi oleh pengunjung.

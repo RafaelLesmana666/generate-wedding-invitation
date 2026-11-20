@@ -200,9 +200,9 @@
     </div>
 
     <div id="publicFields" hidden>
-      <label for="publicName">Nama undangan (opsional)</label>
-      <input id="publicName" type="text" maxlength="60" placeholder="Contoh: Budi Santoso">
-      <p class="hint">Nama ini akan ditampilkan pada halaman undangan publik.</p>
+      <label for="publicNames">Nama undangan (satu nama per baris)</label>
+      <textarea id="publicNames" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
+      <p class="hint">Buat satu link publik untuk setiap nama. Boleh dikosongkan untuk satu link umum.</p>
     </div>
 
     <label for="msg">Pesan WhatsApp (pakai {nama} dan {link})</label>
@@ -247,7 +247,8 @@
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
       if (s.base) $('base').value = s.base;
       if (s.names) $('names').value = s.names;
-      if (s.publicName) $('publicName').value = s.publicName;
+      if (s.publicNames) $('publicNames').value = s.publicNames;
+      else if (s.publicName) $('publicNames').value = s.publicName;
       if (s.msg) $('msg').value = s.msg;
       if (s.linkType === 'public') {
         document.querySelector('input[name="linkType"][value="public"]').checked = true;
@@ -304,12 +305,15 @@
 
       const linkType = selectedLinkType();
       if (linkType === 'public') {
-        const publicName = $('publicName').value.trim();
+        const publicNames = [...new Set($('publicNames').value
+          .split('\n')
+          .map(name => name.trim().replace(/\s+/g, ' ').slice(0, 60))
+          .filter(Boolean))];
         try {
           localStorage.setItem(KEY, JSON.stringify({
             base: $('base').value,
             names: $('names').value,
-            publicName: $('publicName').value,
+            publicNames: $('publicNames').value,
             msg: $('msg').value,
             linkType
           }));
@@ -317,9 +321,12 @@
 
         base.searchParams.delete('id');
         base.searchParams.set('public', '1');
-        if (publicName) base.searchParams.set('to', publicName);
-        else base.searchParams.delete('to');
-        rows = [{ n: publicName || 'Tamu Undangan', link: base.toString() }];
+        rows = (publicNames.length ? publicNames : ['']).map(name => {
+          const u = new URL(base.href);
+          if (name) u.searchParams.set('to', name);
+          else u.searchParams.delete('to');
+          return { n: name || 'Tamu Undangan', link: u.toString() };
+        });
         render();
         return;
       }
@@ -328,7 +335,7 @@
       if (!names.length) { err.textContent = 'Isi minimal satu nama tamu.'; err.hidden = false; return; }
       if (!$('salt').value) { err.textContent = 'Masukkan token generator.'; err.hidden = false; return; }
 
-      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, publicName: $('publicName').value, msg: $('msg').value, linkType })); } catch (e) { }
+      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, publicNames: $('publicNames').value, msg: $('msg').value, linkType })); } catch (e) { }
 
       const button = $('go');
       button.disabled = true;
