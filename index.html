@@ -199,6 +199,12 @@
       <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
     </div>
 
+    <div id="publicFields" hidden>
+      <label for="publicName">Nama undangan (opsional)</label>
+      <input id="publicName" type="text" maxlength="60" placeholder="Contoh: Budi Santoso">
+      <p class="hint">Nama ini akan ditampilkan pada halaman undangan publik.</p>
+    </div>
+
     <label for="msg">Pesan WhatsApp (pakai {nama} dan {link})</label>
     <textarea
       id="msg">Assalamu'alaikum {nama}, kami mengundang Anda ke acara pernikahan kami. Detail undangan ada di sini: {link}</textarea>
@@ -225,9 +231,10 @@
     const updateLinkType = () => {
       const personal = selectedLinkType() === 'personal';
       $('personalFields').hidden = !personal;
+      $('publicFields').hidden = personal;
       document.querySelector('.sub').textContent = personal
         ? 'Tempel daftar nama tamu, lalu buat link personal untuk masing-masing.'
-        : 'Buat satu link publik yang bisa dibuka siapa saja tanpa validasi undangan.';
+        : 'Buat link publik yang bisa dibuka siapa saja tanpa validasi undangan.';
     };
     document.querySelectorAll('input[name="linkType"]').forEach(input => {
       input.addEventListener('change', updateLinkType);
@@ -240,6 +247,7 @@
       const s = JSON.parse(localStorage.getItem(KEY) || '{}');
       if (s.base) $('base').value = s.base;
       if (s.names) $('names').value = s.names;
+      if (s.publicName) $('publicName').value = s.publicName;
       if (s.msg) $('msg').value = s.msg;
       if (s.linkType === 'public') {
         document.querySelector('input[name="linkType"][value="public"]').checked = true;
@@ -296,10 +304,12 @@
 
       const linkType = selectedLinkType();
       if (linkType === 'public') {
+        const publicName = $('publicName').value.trim();
         try {
           localStorage.setItem(KEY, JSON.stringify({
             base: $('base').value,
             names: $('names').value,
+            publicName: $('publicName').value,
             msg: $('msg').value,
             linkType
           }));
@@ -307,7 +317,9 @@
 
         base.searchParams.delete('id');
         base.searchParams.set('public', '1');
-        rows = [{ n: 'Tamu Undangan', link: base.toString() }];
+        if (publicName) base.searchParams.set('to', publicName);
+        else base.searchParams.delete('to');
+        rows = [{ n: publicName || 'Tamu Undangan', link: base.toString() }];
         render();
         return;
       }
@@ -316,7 +328,7 @@
       if (!names.length) { err.textContent = 'Isi minimal satu nama tamu.'; err.hidden = false; return; }
       if (!$('salt').value) { err.textContent = 'Masukkan token generator.'; err.hidden = false; return; }
 
-      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value, linkType })); } catch (e) { }
+      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, publicName: $('publicName').value, msg: $('msg').value, linkType })); } catch (e) { }
 
       const button = $('go');
       button.disabled = true;
@@ -333,6 +345,7 @@
         rows = result.invitations.map(invitation => {
           const u = new URL(base.href);
           u.searchParams.delete('public');
+          u.searchParams.delete('to');
           u.searchParams.set('id', invitation.id);
           return { n: invitation.name, link: u.toString() };
         });
