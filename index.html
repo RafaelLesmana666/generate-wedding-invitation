@@ -146,6 +146,26 @@
       margin-top: 4px
     }
 
+    .link-options {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap
+    }
+
+    .link-options label {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin: 4px 0
+    }
+
+    .link-options input {
+      width: auto;
+      padding: 0;
+      border: 0;
+      accent-color: #EE92AB
+    }
+
     .copy-fallback {
       margin-top: 12px
     }
@@ -164,12 +184,20 @@
     <label for="base">Alamat undangan</label>
     <input id="base" type="text" value="https://nama-proyek.vercel.app/" placeholder="https://nama-proyek.vercel.app/">
 
-    <label for="salt">Token generator</label>
-    <input id="salt" type="password" autocomplete="off" placeholder="Masukkan token generator">
-    <p class="hint">Token divalidasi oleh server undangan dan tidak disimpan di browser.</p>
+    <label>Jenis link</label>
+    <div class="link-options">
+      <label><input type="radio" name="linkType" value="personal" checked> Personal (validasi undangan)</label>
+      <label><input type="radio" name="linkType" value="public"> Publik (tanpa validasi)</label>
+    </div>
 
-    <label for="names">Nama tamu (satu nama per baris)</label>
-    <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
+    <div id="personalFields">
+      <label for="salt">Token generator</label>
+      <input id="salt" type="password" autocomplete="off" placeholder="Masukkan token generator">
+      <p class="hint">Token divalidasi oleh server undangan dan tidak disimpan di browser.</p>
+
+      <label for="names">Nama tamu (satu nama per baris)</label>
+      <textarea id="names" placeholder="Budi Santoso&#10;Keluarga Bapak Hendra&#10;Sari &amp; Partner"></textarea>
+    </div>
 
     <label for="msg">Pesan WhatsApp (pakai {nama} dan {link})</label>
     <textarea
@@ -193,6 +221,18 @@
     const KEY = 'gen-link-v1';
     let rows = [];
 
+    const selectedLinkType = () => document.querySelector('input[name="linkType"]:checked').value;
+    const updateLinkType = () => {
+      const personal = selectedLinkType() === 'personal';
+      $('personalFields').hidden = !personal;
+      document.querySelector('.sub').textContent = personal
+        ? 'Tempel daftar nama tamu, lalu buat link personal untuk masing-masing.'
+        : 'Buat satu link publik yang bisa dibuka siapa saja tanpa validasi undangan.';
+    };
+    document.querySelectorAll('input[name="linkType"]').forEach(input => {
+      input.addEventListener('change', updateLinkType);
+    });
+
     const qs = new URLSearchParams(location.search);
     const guest = (qs.get('base') || '').trim();
 
@@ -201,11 +241,15 @@
       if (s.base) $('base').value = s.base;
       if (s.names) $('names').value = s.names;
       if (s.msg) $('msg').value = s.msg;
+      if (s.linkType === 'public') {
+        document.querySelector('input[name="linkType"][value="public"]').checked = true;
+      }
 
       if (guest) {
         $('base').value = guest;
       }
     } catch (e) { }
+    updateLinkType();
 
     const copy = txt => {
       const t = document.createElement('textarea');
@@ -250,11 +294,29 @@
         return;
       }
 
+      const linkType = selectedLinkType();
+      if (linkType === 'public') {
+        try {
+          localStorage.setItem(KEY, JSON.stringify({
+            base: $('base').value,
+            names: $('names').value,
+            msg: $('msg').value,
+            linkType
+          }));
+        } catch (e) { }
+
+        base.searchParams.delete('id');
+        base.searchParams.set('public', '1');
+        rows = [{ n: 'Tamu Undangan', link: base.toString() }];
+        render();
+        return;
+      }
+
       const names = [...new Set($('names').value.split('\n').map(x => x.trim()).filter(Boolean))];
       if (!names.length) { err.textContent = 'Isi minimal satu nama tamu.'; err.hidden = false; return; }
       if (!$('salt').value) { err.textContent = 'Masukkan token generator.'; err.hidden = false; return; }
 
-      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value })); } catch (e) { }
+      try { localStorage.setItem(KEY, JSON.stringify({ base: $('base').value, names: $('names').value, msg: $('msg').value, linkType })); } catch (e) { }
 
       const button = $('go');
       button.disabled = true;
@@ -270,6 +332,7 @@
 
         rows = result.invitations.map(invitation => {
           const u = new URL(base.href);
+          u.searchParams.delete('public');
           u.searchParams.set('id', invitation.id);
           return { n: invitation.name, link: u.toString() };
         });
